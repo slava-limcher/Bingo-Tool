@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bingo Branding Studio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{ --bg:#0e1016; --panel:#171a24; --panel2:#1f2330; --line:#2a2f3e; --ink:#e8ebf2; --muted:#9aa3b6; --accent:#5b6cff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:'Inter',system-ui,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  a{ color:#8aa0ff; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:20; flex-wrap:wrap; }
+  .brand{ font-weight:800; font-size:20px; letter-spacing:.5px; }
+  .brand small{ color:var(--muted); font-weight:600; font-size:12px; display:block; }
+  .wrap{ display:grid; grid-template-columns: 380px 1fr; gap:20px; padding:20px; align-items:start; }
+  @media(max-width:900px){ .wrap{ grid-template-columns:1fr; } }
+  .col-controls{ display:flex; flex-direction:column; gap:14px; max-height:calc(100vh - 110px); overflow:auto; padding-right:4px; }
+  .col-preview{ position:sticky; top:90px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .card h3{ margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  label{ font-size:12px; color:var(--muted); display:block; margin:8px 0 4px; }
+  input[type=text], input[type=email], input[type=password], select{ width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--ink); font-size:14px; }
+  .row{ display:flex; gap:8px; align-items:center; }
+  .row > *{ flex:1; }
+  .row .shrink{ flex:0 0 auto; }
+  .swatch{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; }
+  input[type=color]{ width:46px; height:32px; border:1px solid var(--line); border-radius:6px; background:transparent; cursor:pointer; padding:0; }
+  input[type=range]{ width:100%; }
+  button{ font-family:inherit; cursor:pointer; }
+  .btn{ background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 14px; font-weight:700; font-size:14px; }
+  .btn:disabled{ opacity:.5; cursor:default; }
+  .btn.alt{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); }
+  .btn.sm{ padding:6px 10px; font-size:12px; }
+  .btn.green{ background:#16a34a; }
+  .seg{ display:inline-flex; gap:4px; background:var(--panel2); padding:4px; border-radius:8px; }
+  .seg button{ background:transparent; border:none; color:var(--muted); padding:5px 12px; border-radius:6px; font-size:12px; font-weight:600; }
+  .seg button.active{ background:var(--accent); color:#fff; }
+  .uploadbtn{ display:inline-flex; align-items:center; padding:9px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel2); font-size:13px; }
+  .hint{ font-size:11px; color:var(--muted); margin-top:6px; }
+  .gallery{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .gallery .gi{ width:46px; height:34px; border-radius:6px; border:1px solid var(--line); background-size:cover; background-position:center; cursor:pointer; position:relative; }
+  .gallery .gi .x{ position:absolute; top:-6px; right:-6px; width:16px; height:16px; border-radius:50%; background:#dc2626; color:#fff; font-size:10px; line-height:16px; text-align:center; }
+  .presetlist{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .preset{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; font-size:13px; }
+  .preset .nm{ flex:1; cursor:pointer; font-weight:600; }
+  .preset .del{ color:#f87171; background:none; border:none; font-size:14px; }
+  .pubstatus{ font-size:12px; margin-top:8px; }
+  .pubstatus.ok{ color:#4ade80; } .pubstatus.warn{ color:#fbbf24; }
+  .linkbox{ display:flex; gap:8px; margin-top:6px; }
+  .linkbox input{ font-family:ui-monospace,monospace; font-size:12px; }
+  .pa-note,.pa-msg{ font-size:12px; color:var(--muted); margin:6px 0; }
+  .pa-row{ margin:6px 0; } .pa-link{ background:none; border:none; color:#8aa0ff; cursor:pointer; }
+  .pa-btn{ background:var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 12px; font-weight:600; font-size:13px; margin-right:6px; }
+  /* Preview frames */
+  .stage{ display:flex; justify-content:center; }
+  .tvframe{ width:100%; max-width:640px; aspect-ratio:16/9; border-radius:14px; border:1px solid var(--line); overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .phoneframe{ width:280px; border-radius:34px; border:6px solid #2a2f3e; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .scr{ width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; padding:22px; }
+  .scr .logo{ max-height:64px; max-width:60%; object-fit:contain; }
+  .scr .title{ font-weight:900; text-transform:uppercase; letter-spacing:.12em; line-height:1; }
+  .grid5{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .cell{ aspect-ratio:1; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">🎯 Bingo Branding Studio <small>Design a venue's look — then use it in the game</small></div>
+    <div class="row" style="flex:0 0 auto; gap:10px;">
+      <a href="#" id="newDesign" class="btn alt sm">New</a>
+      <button id="publishBtn" class="btn">🚀 Publish &amp; get link</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- ============ CONTROLS ============ -->
+    <div class="col-controls">
+      <div class="card">
+        <h3>Identity</h3>
+        <label>Theme name</label>
+        <input type="text" id="name" maxlength="60" placeholder="e.g. Joe's Sports Bar" />
+        <label>Logo</label>
+        <div class="row">
+          <input type="text" id="logo" placeholder="https://… or upload →" />
+          <label class="uploadbtn shrink" style="margin:0;">Upload<input type="file" id="logoFile" accept="image/*" style="display:none" /></label>
+        </div>
+        <div class="hint">Leave blank to use the default BarBoards logo.</div>
+      </div>
+
+      <div class="card">
+        <h3>Colors</h3>
+        <div id="colorRows"></div>
+      </div>
+
+      <div class="card">
+        <h3>Fonts — use any Google font</h3>
+        <label>Title font</label>
+        <div class="row">
+          <input type="text" id="fontDisplay" list="fontlist" placeholder="e.g. Anton" />
+          <button class="btn alt sm shrink" id="loadDisplayFont">Load</button>
+        </div>
+        <label>Body font</label>
+        <div class="row">
+          <input type="text" id="fontBody" list="fontlist" placeholder="e.g. Poppins" />
+          <button class="btn alt sm shrink" id="loadBodyFont">Load</button>
+        </div>
+        <datalist id="fontlist"></datalist>
+        <div class="hint">Type ANY font name from fonts.google.com — it loads instantly in the preview.</div>
+      </div>
+
+      <div class="card">
+        <h3>Background</h3>
+        <div class="row" style="justify-content:space-between;">
+          <span style="flex:0 0 auto; color:var(--muted); font-size:12px;">Editing screen:</span>
+          <div class="seg shrink" id="bgScreenSeg">
+            <button data-s="tv" class="active">TV</button>
+            <button data-s="player">Phone</button>
+            <button data-s="landing">Landing</button>
+          </div>
+        </div>
+        <label>Style</label>
+        <select id="bgStyle">
+          <option value="solid">Solid color</option>
+          <option value="gradient">Gradient</option>
+          <option value="image">Image</option>
+        </select>
+        <div id="bgImageControls" style="display:none;">
+          <label>Background image</label>
+          <div class="row">
+            <input type="text" id="bgImage" placeholder="Image URL or upload →" />
+            <label class="uploadbtn shrink" style="margin:0;">Upload<input type="file" id="bgFile" accept="image/*" style="display:none" /></label>
+          </div>
+          <label>Darken: <span id="dimVal">0%</span></label>
+          <input type="range" id="bgDim" min="0" max="1" step="0.05" value="0" />
+          <div class="gallery" id="bgGallery"></div>
+          <div class="hint">Uploaded/added images are saved to this gallery (this device) — click one to reuse it.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Presets</h3>
+        <div id="presetAuth"></div>
+        <div class="presetlist" id="presetList"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="savePreset">Save current as preset</button>
+          <button class="btn alt sm" id="updatePreset" style="display:none;"></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <button id="publishBtn2" class="btn" style="width:100%;">🚀 Publish &amp; get link</button>
+        <div id="pubResult" style="display:none; margin-top:10px;">
+          <div style="font-weight:700; font-size:13px;">Published! Theme id: <code id="pubId" style="color:#8aa0ff;"></code></div>
+          <label>Re-edit link (opens this design here):</label>
+          <div class="linkbox">
+            <input type="text" id="editLink" readonly />
+            <a class="btn sm shrink" id="openEdit" target="_blank" rel="noreferrer">Open ↗</a>
+          </div>
+          <div class="hint" id="useHint"></div>
+        </div>
+        <div class="pubstatus" id="pubStatus"></div>
+      </div>
+    </div>
+
+    <!-- ============ PREVIEW ============ -->
+    <div class="col-preview">
+      <div class="row" style="justify-content:space-between; margin-bottom:10px;">
+        <strong style="font-size:14px;">Live preview</strong>
+        <div class="seg" id="previewSeg">
+          <button data-s="tv" class="active">TV</button>
+          <button data-s="player">Phone</button>
+          <button data-s="landing">Landing</button>
+        </div>
+      </div>
+      <div class="stage" id="previewStage"></div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+const $ = (id)=>document.getElementById(id);
+
+/* ---------- Supabase (reuses the trivia tool's project) ---------- */
+const SUPABASE_URL = "https://yfatjubmmnykwopnuoyk.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_KcWaVrtqXLfIt80bHliCCw_V9kLdvVV";
+let supa = null;
+function supaClient(){ if(!supa && window.supabase) supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); return supa; }
+
+/* ---------- Color helpers (hex <-> "H S% L%") ---------- */
+function hexToHsl(hex){
+  let h=hex.replace('#','').trim(); if(h.length===3) h=h.split('').map(c=>c+c).join(''); if(h.length!==6) return "0 0% 0%";
+  const r=parseInt(h.slice(0,2),16)/255,g=parseInt(h.slice(2,4),16)/255,b=parseInt(h.slice(4,6),16)/255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2; let hue=0,s=0;
+  if(mx!==mn){ const d=mx-mn; s=l>0.5?d/(2-mx-mn):d/(mx+mn); switch(mx){case r:hue=(g-b)/d+(g<b?6:0);break;case g:hue=(b-r)/d+2;break;default:hue=(r-g)/d+4;} hue/=6; }
+  return Math.round(hue*360)+" "+Math.round(s*100)+"% "+Math.round(l*100)+"%";
+}
+function hslToHex(hsl){
+  const m=String(hsl).trim().match(/^(\d{1,3})\s+(\d{1,3})%\s+(\d{1,3})%$/); if(!m) return "#000000";
+  const h=+m[1],s=+m[2]/100,l=+m[3]/100,k=n=>(n+h/30)%12,a=s*Math.min(l,1-l);
+  const f=n=>{const c=l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1));return Math.round(255*c).toString(16).padStart(2,'0');};
+  return "#"+f(0)+f(8)+f(4);
+}
+
+/* ---------- Theme model (matches the game's Theme schema) ---------- */
+function defaultTheme(){ return {
+  name:"", logoUrl:null, fontDisplay:"Bebas Neue", fontBody:"Inter",
+  colors:{ background:"240 20% 4%", foreground:"210 40% 98%", primary:"220 95% 50%", accent:"163 95% 42%", card:"217 33% 17%" },
+  markAccent:"163 95% 42%",
+  backgrounds:{ tv:{style:"solid",image:null,dim:0}, player:{style:"solid",image:null,dim:0}, landing:{style:"solid",image:null,dim:0} }
+};}
+let THEME = defaultTheme();
+let screen = "tv";          // which screen the preview shows
+let bgScreen = "tv";        // which screen the background controls edit
+let published = false, publishedId = null;
+
+const COLOR_FIELDS = [
+  {k:"accent",label:"Accent (titles & highlights)"},
+  {k:"primary",label:"Primary (buttons)"},
+  {k:"background",label:"Page background"},
+  {k:"card",label:"Card / surface"},
+  {k:"foreground",label:"Text"}
+];
+const FONT_SUGGESTIONS = ["Inter","Roboto","Open Sans","Lato","Montserrat","Poppins","Raleway","Oswald","Bebas Neue","Anton","Teko","Archivo Black","Russo One","Bungee","Rubik","Fredoka","Bangers","Pacifico","Lobster","Righteous"];
+
+/* ---------- Google font loader (idempotent per family) ---------- */
+const loadedFonts = new Set();
+function loadFont(name){
+  if(!name) return; const key=name.trim().toLowerCase(); if(loadedFonts.has(key)) return; loadedFonts.add(key);
+  const link=document.createElement("link"); link.rel="stylesheet";
+  link.href="https://fonts.googleapis.com/css2?family="+name.trim().replace(/\s+/g,"+")+":wght@400;500;600;700;800;900&display=swap";
+  document.head.appendChild(link);
+}
+
+/* ---------- Background CSS value from a screen's bg config ---------- */
+function bgCss(bg, colors){
+  if(bg.style==="image" && bg.image){ const d=Math.max(0,Math.min(1,bg.dim||0)); return "linear-gradient(rgba(0,0,0,"+d+"),rgba(0,0,0,"+d+")), url('"+bg.image+"') center/cover no-repeat"; }
+  if(bg.style==="gradient") return "linear-gradient(135deg, hsl("+colors.background+"), hsl("+colors.card+"))";
+  return "hsl("+colors.background+")";
+}
+
+/* ---------- PREVIEW ---------- */
+function cellEls(){
+  const marked=new Set([0,3,6,11,12,18,24]); let h="";
+  for(let i=0;i<25;i++){ const m=marked.has(i),free=i===12;
+    h+='<div class="cell" style="background:'+(m?"hsl(var(--ma)/0.18)":"hsl(var(--cd))")+';border:1px solid '+(m?"hsl(var(--ma))":"hsl(var(--fg)/0.10)")+';color:'+(m?"hsl(var(--ma))":"hsl(var(--fg)/0.55)")+'">'+(free?"FREE":(m?"✓":""))+'</div>';
+  }
+  return h;
+}
+function previewVars(){
+  const c=THEME.colors;
+  return "--bg:"+bgCss(THEME.backgrounds[screen],c)+";--fg:"+c.foreground+";--pri:"+c.primary+";--acc:"+c.accent+";--cd:"+c.card+";--ma:"+THEME.markAccent+";--fd:'"+THEME.fontDisplay+"',sans-serif;--fb:'"+THEME.fontBody+"',sans-serif;";
+}
+function logoHtml(cls){ const src=THEME.logoUrl||"pluckers-logo.png"; return '<img class="'+cls+'" src="'+src+'" onerror="this.style.display=\'none\'" alt="logo" />'; }
+function renderPreview(){
+  loadFont(THEME.fontDisplay); loadFont(THEME.fontBody);
+  const stage=$("previewStage"); const vars=previewVars();
+  let inner="";
+  if(screen==="tv"){
+    inner='<div class="tvframe" style="'+vars+'background:var(--bg);"><div class="scr">'
+      + logoHtml("logo")
+      + '<div class="title" style="font-family:var(--fd);color:hsl(var(--acc));font-size:34px;">Live Sports Bingo</div>'
+      + '<div class="row" style="gap:18px;align-items:center;">'
+      +   '<div class="grid5" style="width:200px;font-family:var(--fb);">'+cellEls()+'</div>'
+      +   '<div style="font-family:var(--fb);color:hsl(var(--fg));text-align:left;">'
+      +     '<div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.15em;">Room</div>'
+      +     '<div style="font-size:26px;font-weight:900;letter-spacing:.15em;color:hsl(var(--acc));">8ZZJT8</div>'
+      +     '<div style="margin-top:8px;display:inline-block;font-size:10px;font-weight:800;padding:4px 12px;border-radius:99px;background:hsl(var(--acc));color:hsl(var(--bgc,0 0% 0%));">● LIVE</div>'
+      +   '</div>'
+      + '</div></div></div>';
+  } else if(screen==="player"){
+    inner='<div class="phoneframe" style="'+vars+'background:var(--bg);"><div class="scr" style="min-height:460px;gap:12px;">'
+      + logoHtml("logo")
+      + '<div style="font-family:var(--fb);font-size:11px;font-weight:700;letter-spacing:.15em;color:hsl(var(--acc));">ROOM 8ZZJT8</div>'
+      + '<div class="grid5" style="width:200px;font-family:var(--fb);">'+cellEls()+'</div>'
+      + '<button style="width:100%;padding:11px;border:none;border-radius:99px;font-family:var(--fb);font-weight:800;text-transform:uppercase;letter-spacing:.05em;background:hsl(var(--pri));color:#fff;">Bingo!</button>'
+      + '</div></div>';
+  } else {
+    inner='<div class="tvframe" style="'+vars+'background:var(--bg);aspect-ratio:auto;height:460px;"><div class="scr">'
+      + logoHtml("logo")
+      + '<div class="title" style="font-family:var(--fd);color:hsl(var(--acc));font-size:40px;">Live Sports Bingo</div>'
+      + '<div class="grid5" style="width:210px;font-family:var(--fb);">'+cellEls()+'</div>'
+      + '<div style="font-family:var(--fb);color:hsl(var(--fg));"><div style="font-size:20px;font-weight:800;">Play Along. Win Prizes.</div><div style="font-size:13px;opacity:.5;">Scan the QR code on your TV to get started</div></div>'
+      + '<div style="font-family:var(--fb);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:hsl(var(--fg)/0.6);border:1px solid hsl(var(--fg)/0.15);border-radius:99px;padding:7px 18px;">Powered by BarBoards</div>'
+      + '</div></div>';
+  }
+  stage.innerHTML=inner;
+}
+
+/* ---------- CONTROLS WIRING ---------- */
+function buildColorRows(){
+  $("colorRows").innerHTML="";
+  COLOR_FIELDS.concat([{k:"markAccent",label:"Marked square",mark:true}]).forEach(f=>{
+    const row=document.createElement("div"); row.className="swatch";
+    const val = f.mark ? THEME.markAccent : THEME.colors[f.k];
+    row.innerHTML='<span style="font-size:13px;">'+f.label+'</span>';
+    const inp=document.createElement("input"); inp.type="color"; inp.value=hslToHex(val);
+    inp.addEventListener("input",()=>{ const hsl=hexToHsl(inp.value); if(f.mark) THEME.markAccent=hsl; else THEME.colors[f.k]=hsl; renderPreview(); markEdited(); });
+    row.appendChild(inp); $("colorRows").appendChild(row);
+  });
+}
+function syncControlsFromTheme(){
+  $("name").value=THEME.name||""; $("logo").value=THEME.logoUrl||"";
+  $("fontDisplay").value=THEME.fontDisplay; $("fontBody").value=THEME.fontBody;
+  buildColorRows(); syncBgControls(); renderBgGallery();
+}
+function syncBgControls(){
+  const bg=THEME.backgrounds[bgScreen]; $("bgStyle").value=bg.style;
+  $("bgImageControls").style.display = bg.style==="image" ? "" : "none";
+  $("bgImage").value=bg.image||""; $("bgDim").value=bg.dim||0; $("dimVal").textContent=Math.round((bg.dim||0)*100)+"%";
+}
+
+/* background gallery (localStorage, this device) */
+function galleryGet(){ try{ return JSON.parse(localStorage.getItem("bingo-bg-gallery")||"[]"); }catch(e){ return []; } }
+function gallerySave(a){ try{ localStorage.setItem("bingo-bg-gallery", JSON.stringify(a.slice(0,24))); }catch(e){} }
+function galleryAdd(src){ if(!src) return; const a=galleryGet(); if(!a.includes(src)){ a.unshift(src); gallerySave(a); renderBgGallery(); } }
+function renderBgGallery(){
+  const g=$("bgGallery"); if(!g) return; const a=galleryGet(); g.innerHTML="";
+  a.forEach(src=>{ const d=document.createElement("div"); d.className="gi"; d.style.backgroundImage="url('"+src+"')";
+    d.addEventListener("click",()=>{ THEME.backgrounds[bgScreen].image=src; THEME.backgrounds[bgScreen].style="image"; syncBgControls(); renderPreview(); markEdited(); });
+    const x=document.createElement("div"); x.className="x"; x.textContent="×"; x.addEventListener("click",(e)=>{ e.stopPropagation(); gallerySave(galleryGet().filter(s=>s!==src)); renderBgGallery(); });
+    d.appendChild(x); g.appendChild(d); });
+}
+function fileToDataUrl(file,cb){ const r=new FileReader(); r.onload=()=>cb(String(r.result)); r.readAsDataURL(file); }
+
+function wireControls(){
+  $("name").addEventListener("input",e=>{ THEME.name=e.target.value; markEdited(); });
+  $("logo").addEventListener("input",e=>{ THEME.logoUrl=e.target.value||null; renderPreview(); markEdited(); });
+  $("logoFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) fileToDataUrl(f,u=>{ THEME.logoUrl=u; $("logo").value=""; renderPreview(); markEdited(); }); });
+  function fontBind(inputId,key){ const apply=()=>{ const v=$(inputId).value.trim(); if(!v) return; THEME[key]=v; loadFont(v); renderPreview(); markEdited(); }; $(inputId).addEventListener("change",apply); return apply; }
+  const ad=fontBind("fontDisplay","fontDisplay"), ab=fontBind("fontBody","fontBody");
+  $("loadDisplayFont").addEventListener("click",ad); $("loadBodyFont").addEventListener("click",ab);
+  const dl=$("fontlist"); FONT_SUGGESTIONS.forEach(f=>{ const o=document.createElement("option"); o.value=f; dl.appendChild(o); });
+  // background
+  document.querySelectorAll("#bgScreenSeg button").forEach(b=>b.addEventListener("click",()=>{ bgScreen=b.dataset.s; document.querySelectorAll("#bgScreenSeg button").forEach(x=>x.classList.toggle("active",x===b)); screen=bgScreen; document.querySelectorAll("#previewSeg button").forEach(x=>x.classList.toggle("active",x.dataset.s===screen)); syncBgControls(); renderPreview(); }));
+  $("bgStyle").addEventListener("change",e=>{ THEME.backgrounds[bgScreen].style=e.target.value; syncBgControls(); renderPreview(); markEdited(); });
+  $("bgImage").addEventListener("input",e=>{ THEME.backgrounds[bgScreen].image=e.target.value||null; renderPreview(); markEdited(); });
+  $("bgImage").addEventListener("change",e=>{ if(e.target.value) galleryAdd(e.target.value); });
+  $("bgFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) fileToDataUrl(f,u=>{ THEME.backgrounds[bgScreen].image=u; THEME.backgrounds[bgScreen].style="image"; galleryAdd(u); syncBgControls(); renderPreview(); markEdited(); }); });
+  $("bgDim").addEventListener("input",e=>{ THEME.backgrounds[bgScreen].dim=+e.target.value; $("dimVal").textContent=Math.round(e.target.value*100)+"%"; renderPreview(); markEdited(); });
+  // preview screen toggle
+  document.querySelectorAll("#previewSeg button").forEach(b=>b.addEventListener("click",()=>{ screen=b.dataset.s; document.querySelectorAll("#previewSeg button").forEach(x=>x.classList.toggle("active",x===b)); renderPreview(); }));
+  // publish buttons
+  $("publishBtn").addEventListener("click",publish); $("publishBtn2").addEventListener("click",publish);
+  $("newDesign").addEventListener("click",e=>{ e.preventDefault(); THEME=defaultTheme(); activePreset=null; published=false; publishedId=null; $("pubResult").style.display="none"; $("pubStatus").textContent=""; syncControlsFromTheme(); renderPreview(); refreshPresetButtons(); });
+  // presets
+  $("savePreset").addEventListener("click",saveNewPreset);
+  $("updatePreset").addEventListener("click",updateActivePreset);
+}
+
+/* ---------- PUBLISH (Supabase bingo_themes; falls back to local) ---------- */
+function markEdited(){ if(published){ $("pubStatus").textContent="✱ Edited — click Publish to update the link."; $("pubStatus").className="pubstatus warn"; } }
+function designObj(){ return { v:1, theme:JSON.parse(JSON.stringify(THEME)) }; }
+function randId(){ return "thm_"+Math.random().toString(36).slice(2,10); }
+async function publish(){
+  if(!THEME.name.trim()){ $("pubStatus").textContent="Give your theme a name first."; $("pubStatus").className="pubstatus warn"; return; }
+  const id = publishedId || randId();
+  const st=$("pubStatus"); st.textContent="Publishing…"; st.className="pubstatus";
+  const c=supaClient();
+  const payload={ id, name:THEME.name.trim(), design:designObj(), updated_at:new Date().toISOString() };
+  let ok=false;
+  if(c){ try{ const { error }=await c.from("bingo_themes").upsert(payload,{onConflict:"id"}); if(error) throw error; ok=true; }catch(e){ st.textContent="Cloud error: "+((e&&e.message)||e); st.className="pubstatus warn"; } }
+  try{ localStorage.setItem("bingo-theme-"+id, JSON.stringify(payload)); }catch(e){}
+  published=true; publishedId=id;
+  const editUrl=location.origin+location.pathname+"?theme="+id;
+  $("pubId").textContent=id; $("editLink").value=editUrl; $("openEdit").href=editUrl;
+  $("useHint").innerHTML="In the game, this theme id is what gets applied (we'll wire the game to read these once it's hosted).";
+  $("pubResult").style.display="";
+  if(ok){ st.textContent="✓ Published to the cloud — opens on any device."; st.className="pubstatus ok"; }
+  else if(!c){ st.textContent="⚠ Cloud unavailable — saved on this device only."; st.className="pubstatus warn"; }
+}
+
+/* ---------- PRESETS (built-in + local IndexedDB + cloud per-user) ---------- */
+const BUILTIN_PRESETS=[
+  {name:"BarBoards Default", theme:defaultTheme()},
+  {name:"Sunset Sports Bar", theme:Object.assign(defaultTheme(),{ fontDisplay:"Anton", fontBody:"Poppins", colors:{background:"258 45% 7%",foreground:"40 30% 96%",primary:"28 95% 55%",accent:"45 96% 55%",card:"258 35% 15%"}, markAccent:"45 96% 55%", backgrounds:{tv:{style:"gradient",image:null,dim:0},player:{style:"gradient",image:null,dim:0},landing:{style:"gradient",image:null,dim:0}} })},
+  {name:"Ice House (Hockey)", theme:Object.assign(defaultTheme(),{ fontDisplay:"Teko", fontBody:"Inter", colors:{background:"210 60% 8%",foreground:"200 30% 96%",primary:"205 90% 52%",accent:"190 95% 55%",card:"210 45% 16%"}, markAccent:"190 95% 55%" })},
+  {name:"Retro Diner", theme:Object.assign(defaultTheme(),{ fontDisplay:"Bungee", fontBody:"Rubik", colors:{background:"350 35% 10%",foreground:"40 60% 95%",primary:"352 80% 55%",accent:"45 95% 58%",card:"350 30% 18%"}, markAccent:"45 95% 58%" })}
+];
+let PRESETS=[]; let authUser=null; let activePreset=null;
+
+/* local IndexedDB store (signed out) */
+const PDB="bingo-studio",PSTORE="kv",PKEY="bingo-presets";
+function idbOpen(){ return new Promise((res,rej)=>{ const r=indexedDB.open(PDB,1); r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(PSTORE)) r.result.createObjectStore(PSTORE); }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function idbGet(k){ return idbOpen().then(db=>new Promise((res,rej)=>{ const q=db.transaction(PSTORE,"readonly").objectStore(PSTORE).get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); })); }
+function idbSet(k,v){ return idbOpen().then(db=>new Promise((res,rej)=>{ const q=db.transaction(PSTORE,"readwrite").objectStore(PSTORE).put(v,k); q.onsuccess=()=>res(true); q.onerror=()=>rej(q.error); })); }
+async function loadLocalPresets(){ try{ const v=await idbGet(PKEY); if(Array.isArray(v)) return v; }catch(e){} return []; }
+function saveLocalPresets(){ return idbSet(PKEY,PRESETS).then(()=>true).catch(()=>{ alert("Couldn't save preset locally."); return false; }); }
+
+/* cloud store (signed in) — private per user via RLS */
+async function loadCloudPresets(){ const c=supaClient(); if(!c||!authUser) return []; try{ const r=await c.from("bingo_user_presets").select("presets").eq("user_id",authUser.id).maybeSingle(); return (r.data&&Array.isArray(r.data.presets))?r.data.presets:[]; }catch(e){ return []; } }
+async function saveCloudPresets(){ const c=supaClient(); if(!c||!authUser) return false; try{ const r=await c.from("bingo_user_presets").upsert({user_id:authUser.id,presets:PRESETS,updated_at:new Date().toISOString()},{onConflict:"user_id"}); if(r.error) throw r.error; return true; }catch(e){ alert("Couldn't save preset to cloud: "+((e&&e.message)||e)); return false; } }
+async function loadPresetsAsync(){ if(authUser){ PRESETS=await loadCloudPresets(); if(!PRESETS.length){ const local=await loadLocalPresets(); if(local.length){ PRESETS=local; await saveCloudPresets(); } } } else { PRESETS=await loadLocalPresets(); } renderPresets(); }
+function savePresets(){ return authUser?saveCloudPresets():saveLocalPresets(); }
+
+function renderPresets(){
+  const list=$("presetList"); list.innerHTML="";
+  const render=(p,i,builtin)=>{ const row=document.createElement("div"); row.className="preset";
+    const nm=document.createElement("div"); nm.className="nm"; nm.textContent=(builtin?"★ ":"")+p.name; nm.title="Apply this preset"; nm.addEventListener("click",()=>applyPreset(p,builtin?null:i));
+    row.appendChild(nm);
+    if(!builtin){ const d=document.createElement("button"); d.className="del"; d.textContent="🗑"; d.title="Delete"; d.addEventListener("click",async()=>{ PRESETS.splice(i,1); if(activePreset===i)activePreset=null; await savePresets(); renderPresets(); refreshPresetButtons(); }); row.appendChild(d); }
+    list.appendChild(row);
+  };
+  BUILTIN_PRESETS.forEach(p=>render(p,-1,true));
+  PRESETS.forEach((p,i)=>render(p,i,false));
+}
+function applyPreset(p,idx){ THEME=JSON.parse(JSON.stringify(p.theme)); if(!THEME.name && p.name) THEME.name=p.name; activePreset=(idx==null?null:idx); syncControlsFromTheme(); renderPreview(); refreshPresetButtons(); markEdited(); }
+async function saveNewPreset(){ const nm=prompt("Preset name:", THEME.name||"My Preset"); if(!nm) return; PRESETS.push({name:nm, theme:JSON.parse(JSON.stringify(THEME))}); activePreset=PRESETS.length-1; await savePresets(); renderPresets(); refreshPresetButtons(); }
+async function updateActivePreset(){ if(activePreset==null||!PRESETS[activePreset]) return; PRESETS[activePreset]={name:PRESETS[activePreset].name, theme:JSON.parse(JSON.stringify(THEME))}; await savePresets(); renderPresets(); }
+function refreshPresetButtons(){ const u=$("updatePreset"); if(activePreset!=null&&PRESETS[activePreset]){ u.style.display=""; u.textContent="Update “"+PRESETS[activePreset].name+"”"; } else u.style.display="none"; }
+
+/* ---------- ACCOUNTS (Supabase auth + signup edge function; reused from trivia) ---------- */
+async function initAuth(){
+  const c=supaClient(); if(!c){ updateAuthUI(); loadPresetsAsync(); return; }
+  try{ const s=await c.auth.getSession(); authUser=(s&&s.data&&s.data.session&&s.data.session.user)||null; }catch(e){ authUser=null; }
+  updateAuthUI(); loadPresetsAsync();
+  c.auth.onAuthStateChange((event,session)=>{ if(event==="INITIAL_SESSION") return; authUser=(session&&session.user)||null; updateAuthUI(); loadPresetsAsync(); refreshPresetButtons(); });
+}
+function signOutUser(){ const c=supaClient(); if(c) c.auth.signOut(); }
+function esc(s){ return String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
+function updateAuthUI(){
+  const box=$("presetAuth"); if(!box) return;
+  if(authUser){
+    box.innerHTML='<div class="pa-note">Signed in as <b>'+esc(authUser.email||"you")+'</b> — your presets are private &amp; synced. <button type="button" id="paOut" class="pa-link">Sign out</button></div>';
+    const o=$("paOut"); if(o) o.addEventListener("click",signOutUser);
+  } else {
+    box.innerHTML='<div class="pa-note">Sign in to keep your presets <b>private</b> &amp; synced across devices (otherwise they stay on this device):</div>'
+      +'<div class="pa-row"><input type="email" id="paEmail" placeholder="you@email.com" autocomplete="email" /></div>'
+      +'<div class="pa-row"><input type="password" id="paPass" placeholder="Password (6+ chars)" autocomplete="current-password" /></div>'
+      +'<div class="pa-row"><button type="button" id="paSignIn" class="pa-btn">Sign in</button><button type="button" id="paSignUp" class="pa-btn" style="background:#16a34a">Create account</button></div>'
+      +'<div id="paMsg" class="pa-msg"></div>';
+    const msg=()=>$("paMsg");
+    const creds=()=>{ const email=(($("paEmail")||{}).value||"").trim(),pass=(($("paPass")||{}).value||""); if(!/.+@.+\..+/.test(email)){ msg().textContent="Enter a valid email."; return null; } if(pass.length<6){ msg().textContent="Password must be 6+ characters."; return null; } return {email,password:pass}; };
+    const run=async(mode)=>{ const v=creds(); if(!v) return; const c=supaClient(); if(!c){ msg().textContent="Cloud unavailable."; return; } const si=$("paSignIn"),su=$("paSignUp"); si.disabled=su.disabled=true; msg().textContent=mode==="up"?"Creating account…":"Signing in…";
+      try{ if(mode==="up"){ const res=await fetch(SUPABASE_URL+"/functions/v1/signup",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY},body:JSON.stringify(v)}); let jr={}; try{ jr=await res.json(); }catch(e){} if(!res.ok||jr.error){ msg().textContent="Error: "+(jr.error||("Could not create account (HTTP "+res.status+").")); si.disabled=su.disabled=false; return; } msg().textContent="Account created — signing in…"; } const r=await c.auth.signInWithPassword(v); if(r.error) msg().textContent="Error: "+r.error.message; }
+      catch(e){ msg().textContent="Error: "+((e&&e.message)||e); } si.disabled=su.disabled=false; };
+    $("paSignIn").addEventListener("click",()=>run("in")); $("paSignUp").addEventListener("click",()=>run("up"));
+    const pe=$("paPass"); if(pe) pe.addEventListener("keydown",e=>{ if(e.key==="Enter") run("in"); });
+  }
+}
+
+/* ---------- LOAD a published theme for editing (?theme=id) ---------- */
+async function loadThemeParam(){
+  let id=null; try{ id=new URLSearchParams(location.search).get("theme"); }catch(e){}
+  if(!id) return;
+  let design=null;
+  const c=supaClient();
+  if(c){ try{ const r=await c.from("bingo_themes").select("design,name").eq("id",id).maybeSingle(); if(r.data&&r.data.design){ design=r.data.design; } }catch(e){} }
+  if(!design){ try{ const raw=localStorage.getItem("bingo-theme-"+id); if(raw){ design=JSON.parse(raw).design; } }catch(e){} }
+  if(design&&design.theme){ THEME=Object.assign(defaultTheme(),design.theme); published=true; publishedId=id; }
+}
+
+/* ---------- INIT ---------- */
+(async function(){
+  wireControls();
+  await loadThemeParam();
+  syncControlsFromTheme();
+  renderPreview();
+  initAuth();
+})();
+</script>
+</body>
+</html>
