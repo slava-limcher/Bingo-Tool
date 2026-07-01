@@ -511,7 +511,7 @@ function wireControls(){
   $("publishBtn").addEventListener("click",publish); $("publishBtn2").addEventListener("click",publish);
   const gu=$("gameUrl"); gu.value=localStorage.getItem("bingo-game-url")||"http://localhost:5000";
   gu.addEventListener("input",()=>{ try{ localStorage.setItem("bingo-game-url", gu.value.trim()); }catch(e){} });
-  $("newDesign").addEventListener("click",e=>{ e.preventDefault(); THEME=defaultTheme(); activePreset=null; published=false; publishedId=null; $("pubResult").style.display="none"; $("pubStatus").textContent=""; syncControlsFromTheme(); renderPreview(); refreshPresetButtons(); });
+  $("newDesign").addEventListener("click",e=>{ e.preventDefault(); if(!confirm("Start a brand-new theme? Your current one stays published; this begins a fresh one.")) return; THEME=defaultTheme(); activePreset=null; published=false; publishedId=null; try{localStorage.removeItem("bingo-theme-id");}catch(err){} $("pubResult").style.display="none"; $("pubStatus").textContent=""; syncControlsFromTheme(); renderPreview(); refreshPresetButtons(); });
   // presets
   $("savePreset").addEventListener("click",saveNewPreset);
   $("updatePreset").addEventListener("click",updateActivePreset);
@@ -523,7 +523,9 @@ function designObj(){ return { v:1, theme:JSON.parse(JSON.stringify(THEME)) }; }
 function randId(){ return "thm_"+Math.random().toString(36).slice(2,10); }
 async function publish(){
   if(!THEME.name.trim()){ $("pubStatus").textContent="Give your theme a name first."; $("pubStatus").className="pubstatus warn"; return; }
-  const id = publishedId || randId();
+  // Reuse ONE stable id per browser so editing + re-publishing UPDATES the same
+  // brand (and every room using it), instead of spawning a new theme each time.
+  const id = publishedId || localStorage.getItem("bingo-theme-id") || randId();
   const st=$("pubStatus"); st.textContent="Publishing…"; st.className="pubstatus";
   const c=supaClient();
   const payload={ id, name:THEME.name.trim(), design:designObj(), updated_at:new Date().toISOString() };
@@ -531,6 +533,7 @@ async function publish(){
   if(c){ try{ const { error }=await c.from("bingo_themes").upsert(payload,{onConflict:"id"}); if(error) throw error; ok=true; }catch(e){ st.textContent="Cloud error: "+((e&&e.message)||e); st.className="pubstatus warn"; } }
   try{ localStorage.setItem("bingo-theme-"+id, JSON.stringify(payload)); }catch(e){}
   published=true; publishedId=id;
+  try{ localStorage.setItem("bingo-theme-id", id); }catch(e){}
   const editUrl=location.origin+location.pathname+"?theme="+id;
   const gameBase=($("gameUrl").value.trim()||"http://localhost:5000").replace(/\/+$/,"");
   const gameUrl=gameBase+"/dashboard?theme="+id;
@@ -613,6 +616,7 @@ function updateAuthUI(){
 /* ---------- LOAD a published theme for editing (?theme=id) ---------- */
 async function loadThemeParam(){
   let id=null; try{ id=new URLSearchParams(location.search).get("theme"); }catch(e){}
+  if(!id){ try{ id=localStorage.getItem("bingo-theme-id"); }catch(e){} }   // resume this browser's brand
   if(!id) return;
   let design=null;
   const c=supaClient();
