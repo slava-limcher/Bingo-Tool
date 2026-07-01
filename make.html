@@ -142,17 +142,18 @@
           <option value="gradient">Gradient</option>
           <option value="image">Image</option>
         </select>
+        <div class="swatch"><span style="font-size:13px;">Background color (any color)</span><input type="color" id="bgColor" /></div>
         <div id="bgImageControls" style="display:none;">
-          <label>Background image</label>
+          <label>Background image (import)</label>
           <div class="row">
             <input type="text" id="bgImage" placeholder="Image URL or upload →" />
             <label class="uploadbtn shrink" style="margin:0;">Upload<input type="file" id="bgFile" accept="image/*" style="display:none" /></label>
           </div>
-          <label>Darken: <span id="dimVal">0%</span></label>
-          <input type="range" id="bgDim" min="0" max="1" step="0.05" value="0" />
           <div class="gallery" id="bgGallery"></div>
           <div class="hint">Uploaded/added images are saved to this gallery (this device) — click one to reuse it.</div>
         </div>
+        <label>Dim: <span id="dimVal">0%</span> (darkens the background)</label>
+        <input type="range" id="bgDim" min="0" max="1" step="0.05" value="0" />
       </div>
 
       <div class="card">
@@ -278,9 +279,10 @@ function loadFont(name){
 
 /* ---------- Background CSS value from a screen's bg config ---------- */
 function bgCss(bg, colors){
-  if(bg.style==="image" && bg.image){ const d=Math.max(0,Math.min(1,bg.dim||0)); return "linear-gradient(rgba(0,0,0,"+d+"),rgba(0,0,0,"+d+")), url('"+bg.image+"') center/cover no-repeat"; }
-  if(bg.style==="gradient") return "linear-gradient(135deg, hsl("+colors.background+"), hsl("+colors.card+"))";
-  return "hsl("+colors.background+")";
+  const d=Math.max(0,Math.min(1,bg.dim||0)); const ov=d>0?("linear-gradient(rgba(0,0,0,"+d+"),rgba(0,0,0,"+d+")), "):"";
+  if(bg.style==="image" && bg.image){ return ov+"url('"+bg.image+"') center/cover no-repeat"; }
+  if(bg.style==="gradient") return ov+"linear-gradient(135deg, hsl("+colors.background+"), hsl("+colors.card+"))";
+  return ov+"hsl("+colors.background+")";
 }
 
 /* ---------- PREVIEW — element engine (faithful + per-element editable) ---------- */
@@ -470,6 +472,7 @@ function syncControlsFromTheme(){
 function syncBgControls(){
   const bg=THEME.backgrounds[bgScreen]; $("bgStyle").value=bg.style;
   $("bgImageControls").style.display = bg.style==="image" ? "" : "none";
+  $("bgColor").value=hslToHex(THEME.colors.background);
   $("bgImage").value=bg.image||""; $("bgDim").value=bg.dim||0; $("dimVal").textContent=Math.round((bg.dim||0)*100)+"%";
 }
 
@@ -497,6 +500,7 @@ function wireControls(){
   // background
   document.querySelectorAll("#bgScreenSeg button").forEach(b=>b.addEventListener("click",()=>{ bgScreen=b.dataset.s; document.querySelectorAll("#bgScreenSeg button").forEach(x=>x.classList.toggle("active",x===b)); screen=bgScreen; selectedKey=null; document.querySelectorAll("#previewSeg button").forEach(x=>x.classList.toggle("active",x.dataset.s===screen)); syncBgControls(); renderPreview(); renderElementEditor(); }));
   $("bgStyle").addEventListener("change",e=>{ THEME.backgrounds[bgScreen].style=e.target.value; syncBgControls(); renderPreview(); markEdited(); });
+  $("bgColor").addEventListener("input",e=>{ THEME.colors.background=hexToHsl(e.target.value); buildColorRows(); renderPreview(); markEdited(); });
   $("bgImage").addEventListener("input",e=>{ THEME.backgrounds[bgScreen].image=e.target.value||null; renderPreview(); markEdited(); });
   $("bgImage").addEventListener("change",e=>{ if(e.target.value) galleryAdd(e.target.value); });
   $("bgFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) fileToDataUrl(f,u=>{ THEME.backgrounds[bgScreen].image=u; THEME.backgrounds[bgScreen].style="image"; galleryAdd(u); syncBgControls(); renderPreview(); markEdited(); }); });
