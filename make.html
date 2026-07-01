@@ -148,13 +148,21 @@
       </div>
 
       <div class="card">
-        <button id="publishBtn2" class="btn" style="width:100%;">🚀 Publish &amp; get link</button>
+        <label>Game dashboard URL</label>
+        <input type="text" id="gameUrl" placeholder="http://localhost:5000" />
+        <div class="hint">Where your Bar Bingo game runs. Publishing gives a link that opens this dashboard with your theme ready to use.</div>
+        <button id="publishBtn2" class="btn" style="width:100%; margin-top:10px;">🚀 Publish &amp; get link</button>
         <div id="pubResult" style="display:none; margin-top:10px;">
           <div style="font-weight:700; font-size:13px;">Published! Theme id: <code id="pubId" style="color:#8aa0ff;"></code></div>
-          <label>Re-edit link (opens this design here):</label>
+          <label>Open in game dashboard (starts a room with this theme):</label>
+          <div class="linkbox">
+            <input type="text" id="gameLink" readonly />
+            <a class="btn sm shrink" id="openGame" target="_blank" rel="noreferrer">Open ↗</a>
+          </div>
+          <label>Re-edit this design here:</label>
           <div class="linkbox">
             <input type="text" id="editLink" readonly />
-            <a class="btn sm shrink" id="openEdit" target="_blank" rel="noreferrer">Open ↗</a>
+            <a class="btn sm shrink alt" id="openEdit" target="_blank" rel="noreferrer">Open ↗</a>
           </div>
           <div class="hint" id="useHint"></div>
         </div>
@@ -339,8 +347,10 @@ function wireControls(){
   $("bgDim").addEventListener("input",e=>{ THEME.backgrounds[bgScreen].dim=+e.target.value; $("dimVal").textContent=Math.round(e.target.value*100)+"%"; renderPreview(); markEdited(); });
   // preview screen toggle
   document.querySelectorAll("#previewSeg button").forEach(b=>b.addEventListener("click",()=>{ screen=b.dataset.s; document.querySelectorAll("#previewSeg button").forEach(x=>x.classList.toggle("active",x===b)); renderPreview(); }));
-  // publish buttons
+  // publish buttons + game URL (persisted per device)
   $("publishBtn").addEventListener("click",publish); $("publishBtn2").addEventListener("click",publish);
+  const gu=$("gameUrl"); gu.value=localStorage.getItem("bingo-game-url")||"http://localhost:5000";
+  gu.addEventListener("input",()=>{ try{ localStorage.setItem("bingo-game-url", gu.value.trim()); }catch(e){} });
   $("newDesign").addEventListener("click",e=>{ e.preventDefault(); THEME=defaultTheme(); activePreset=null; published=false; publishedId=null; $("pubResult").style.display="none"; $("pubStatus").textContent=""; syncControlsFromTheme(); renderPreview(); refreshPresetButtons(); });
   // presets
   $("savePreset").addEventListener("click",saveNewPreset);
@@ -362,8 +372,10 @@ async function publish(){
   try{ localStorage.setItem("bingo-theme-"+id, JSON.stringify(payload)); }catch(e){}
   published=true; publishedId=id;
   const editUrl=location.origin+location.pathname+"?theme="+id;
-  $("pubId").textContent=id; $("editLink").value=editUrl; $("openEdit").href=editUrl;
-  $("useHint").innerHTML="In the game, this theme id is what gets applied (we'll wire the game to read these once it's hosted).";
+  const gameBase=($("gameUrl").value.trim()||"http://localhost:5000").replace(/\/+$/,"");
+  const gameUrl=gameBase+"/dashboard?theme="+id;
+  $("pubId").textContent=id; $("gameLink").value=gameUrl; $("openGame").href=gameUrl; $("editLink").value=editUrl; $("openEdit").href=editUrl;
+  $("useHint").innerHTML="Opening the game dashboard imports this theme and opens Create Room with it pre-selected.";
   $("pubResult").style.display="";
   if(ok){ st.textContent="✓ Published to the cloud — opens on any device."; st.className="pubstatus ok"; }
   else if(!c){ st.textContent="⚠ Cloud unavailable — saved on this device only."; st.className="pubstatus warn"; }
