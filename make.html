@@ -239,7 +239,7 @@ function defaultTheme(){ return {
   text:{ title:"Live Sports Bingo", scanToPlay:"SCAN TO PLAY", homeLabel:"HOME", awayLabel:"AWAY",
     lastPlayLabel:"LAST PLAY", lastPlayText:"Waiting for plays…", legendCompleted:"Event Completed",
     legendFree:"Free Square", winHeading:"Win Conditions per Player", winText:"1st Line Win & Blackout",
-    poweredBy:"Powered by BarBoards" }
+    poweredBy:"Powered by BarBoards", namePlaceholder:"Your Name", joinButton:"Let's Go!" }
 };}
 // Read a text/label with fallback to the default (built-in presets may omit `text`).
 function T(k){ return (THEME.text && THEME.text[k]!=null && THEME.text[k]!=="") ? THEME.text[k] : defaultTheme().text[k]; }
@@ -265,7 +265,8 @@ const TEXT_FIELDS = [
   {k:"lastPlayLabel",label:"“Last play” label"},{k:"lastPlayText",label:"Last-play placeholder"},
   {k:"legendCompleted",label:"Legend: completed"},{k:"legendFree",label:"Legend: free square"},
   {k:"winHeading",label:"Win-conditions heading"},{k:"winText",label:"Win-conditions text"},
-  {k:"poweredBy",label:"“Powered by” badge"}
+  {k:"poweredBy",label:"“Powered by” badge"},
+  {k:"namePlaceholder",label:"Join: name field"},{k:"joinButton",label:"Join button"}
 ];
 
 /* ---------- Google font loader (idempotent per family) ---------- */
