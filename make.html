@@ -296,6 +296,7 @@ const ROLE_STYLE = {
   score:"font-family:var(--fb);color:hsl(var(--fg));font-weight:900;",
   muted:"font-family:var(--fb);color:hsl(var(--fg)/0.5);letter-spacing:.2em;",
   free:"font-family:var(--fb);color:hsl(var(--fa));font-weight:700;",
+  completed:"font-family:var(--fb);color:hsl(var(--ma));font-weight:700;",
   badge:"font-family:var(--fb);color:hsl(var(--fg)/0.6);letter-spacing:.2em;text-transform:uppercase;border:1px solid hsl(var(--fg)/0.15);border-radius:99px;padding:6px 16px;"
 };
 const ELEMENTS = {
@@ -320,7 +321,7 @@ const ELEMENTS = {
     {key:"logo",kind:"logo",x:50,y:8,size:30,label:"Logo"},
     {key:"title",kind:"text",tk:"title",role:"accentDisplay",size:22,x:50,y:16,label:"Title"},
     {key:"card",kind:"card",x:50,y:40,size:212,label:"Bingo card"},
-    {key:"legendCompleted",kind:"text",tk:"legendCompleted",role:"muted",size:10,x:33,y:66,label:"Legend: done"},
+    {key:"legendCompleted",kind:"text",tk:"legendCompleted",role:"completed",size:10,x:33,y:66,label:"Legend: done"},
     {key:"legendFree",kind:"text",tk:"legendFree",role:"free",size:10,x:63,y:66,label:"Legend: free"},
     {key:"cardOwner",kind:"text",text:"slava's Bingo Card",role:"strong",size:14,x:50,y:74,label:"Card owner"},
     {key:"winHeading",kind:"text",tk:"winHeading",role:"accent",size:12,x:50,y:80,label:"Win heading"},
@@ -448,7 +449,7 @@ function renderElementEditor(){
 /* ---------- CONTROLS WIRING ---------- */
 function buildColorRows(){
   $("colorRows").innerHTML="";
-  COLOR_FIELDS.concat([{k:"markAccent",label:"Marked square",mark:true},{k:"freeAccent",label:"Free square",free:true}]).forEach(f=>{
+  COLOR_FIELDS.concat([{k:"markAccent",label:"Completed square",mark:true},{k:"freeAccent",label:"Free square",free:true}]).forEach(f=>{
     const row=document.createElement("div"); row.className="swatch";
     const val = f.free ? THEME.freeAccent : (f.mark ? THEME.markAccent : THEME.colors[f.k]);
     row.innerHTML='<span style="font-size:13px;">'+f.label+'</span>';
