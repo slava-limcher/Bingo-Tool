@@ -579,8 +579,18 @@ function renderPresets(){
   PRESETS.forEach((p,i)=>render(p,i,false));
 }
 function applyPreset(p,idx){ THEME=JSON.parse(JSON.stringify(p.theme)); if(!THEME.name && p.name) THEME.name=p.name; activePreset=(idx==null?null:idx); syncControlsFromTheme(); renderPreview(); refreshPresetButtons(); markEdited(); }
-async function saveNewPreset(){ const nm=prompt("Preset name:", THEME.name||"My Preset"); if(!nm) return; PRESETS.push({name:nm, theme:JSON.parse(JSON.stringify(THEME))}); activePreset=PRESETS.length-1; await savePresets(); renderPresets(); refreshPresetButtons(); }
-async function updateActivePreset(){ if(activePreset==null||!PRESETS[activePreset]) return; PRESETS[activePreset]={name:PRESETS[activePreset].name, theme:JSON.parse(JSON.stringify(THEME))}; await savePresets(); renderPresets(); }
+// Publish a preset as a COMPANY BRAND to the shared cloud list (bingo_themes) so it
+// shows up in the game dashboard's "Brand / Company" picker. Each preset keeps its
+// own stable id, so editing + re-saving updates the same brand everywhere.
+async function publishPresetBrand(preset){
+  const c=supaClient(); if(!c||!preset) return;
+  if(!preset.id) preset.id = "thm_"+Math.random().toString(36).slice(2,10);
+  try{ await c.from("bingo_themes").upsert({ id:preset.id, name:preset.name, design:{v:1, theme:preset.theme}, updated_at:new Date().toISOString() },{ onConflict:"id" }); }
+  catch(e){ /* offline — preset still saved locally; retries on next save */ }
+}
+function presetStatus(msg){ const st=$("pubStatus"); if(st){ st.textContent=msg; st.className="pubstatus ok"; } }
+async function saveNewPreset(){ const nm=prompt("Preset / company name:", THEME.name||"My Company"); if(!nm) return; const p={name:nm, theme:JSON.parse(JSON.stringify(THEME))}; PRESETS.push(p); activePreset=PRESETS.length-1; await publishPresetBrand(p); await savePresets(); renderPresets(); refreshPresetButtons(); presetStatus("✓ Saved “"+nm+"” — it's now in the game's Brand list."); }
+async function updateActivePreset(){ if(activePreset==null||!PRESETS[activePreset]) return; const p={name:PRESETS[activePreset].name, id:PRESETS[activePreset].id, theme:JSON.parse(JSON.stringify(THEME))}; PRESETS[activePreset]=p; await publishPresetBrand(p); await savePresets(); renderPresets(); presetStatus("✓ Updated “"+p.name+"” — the game's Brand list is refreshed."); }
 function refreshPresetButtons(){ const u=$("updatePreset"); if(activePreset!=null&&PRESETS[activePreset]){ u.style.display=""; u.textContent="Update “"+PRESETS[activePreset].name+"”"; } else u.style.display="none"; }
 
 /* ---------- ACCOUNTS (Supabase auth + signup edge function; reused from trivia) ---------- */
