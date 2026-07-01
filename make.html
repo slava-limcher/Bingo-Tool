@@ -233,6 +233,7 @@ function defaultTheme(){ return {
   name:"", logoUrl:null, fontDisplay:"Bebas Neue", fontBody:"Inter",
   colors:{ background:"240 20% 4%", foreground:"210 40% 98%", primary:"220 95% 50%", accent:"163 95% 42%", card:"217 33% 17%" },
   markAccent:"163 95% 42%",
+  freeAccent:"45 93% 47%",
   backgrounds:{ tv:{style:"solid",image:null,dim:0}, player:{style:"solid",image:null,dim:0}, landing:{style:"solid",image:null,dim:0} },
   el:{ tv:{}, player:{}, landing:{} },   // per-element overrides {x,y,size,font,color,hidden,text}
   cardFaces:null,                        // null => default EVENT_LABELS; else 25 custom strings
@@ -294,7 +295,7 @@ const ROLE_STYLE = {
   strong:"font-family:var(--fb);color:hsl(var(--fg));font-weight:800;",
   score:"font-family:var(--fb);color:hsl(var(--fg));font-weight:900;",
   muted:"font-family:var(--fb);color:hsl(var(--fg)/0.5);letter-spacing:.2em;",
-  free:"font-family:var(--fb);color:#f5d773;font-weight:700;",
+  free:"font-family:var(--fb);color:hsl(var(--fa));font-weight:700;",
   badge:"font-family:var(--fb);color:hsl(var(--fg)/0.6);letter-spacing:.2em;text-transform:uppercase;border:1px solid hsl(var(--fg)/0.15);border-radius:99px;padding:6px 16px;"
 };
 const ELEMENTS = {
@@ -345,9 +346,9 @@ function elText(e){ const ov=elOv(e.key); if(ov.text!=null&&ov.text!=="") return
 function cellEls(small){
   const F=faces(); let h="";
   for(let i=0;i<25;i++){ const free=i===12, m=MARKED_CELLS.has(i);
-    const bg=free?"linear-gradient(135deg,#4a3a00,#6a5a10)":(m?"hsl(var(--ma)/0.16)":"hsl(var(--cd))");
-    const bd=free?"#8a6d1a":(m?"hsl(var(--ma))":"hsl(var(--fg)/0.10)");
-    const col=free?"#f5d773":(m?"hsl(var(--ma))":"hsl(var(--fg)/0.8)");
+    const bg=free?"linear-gradient(135deg,hsl(var(--fa)/0.22),hsl(var(--fa)/0.36))":(m?"hsl(var(--ma)/0.16)":"hsl(var(--cd))");
+    const bd=free?"hsl(var(--fa))":(m?"hsl(var(--ma))":"hsl(var(--fg)/0.10)");
+    const col=free?"hsl(var(--fa))":(m?"hsl(var(--ma))":"hsl(var(--fg)/0.8)");
     const sel=(selectedKey==="face:"+i)?"outline:2px solid #5b6cff;outline-offset:1px;":"";
     h+='<div class="pv-face" data-face="'+i+'" style="cursor:pointer;font-size:'+(small?"6px":"8px")+';line-height:1.04;padding:2px;overflow:hidden;text-align:center;display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:5px;background:'+bg+';border:1px solid '+bd+';color:'+col+';'+sel+'">'+esc(F[i])+'</div>';
   }
@@ -360,7 +361,7 @@ function qrSvg(size){ const S=size||64,n=13,cell=8,pad=6,sz=n*cell+pad*2; let r=
   for(let y=0;y<n;y++)for(let x=0;x<n;x++){ const c=(x<3&&y<3)||(x>=n-3&&y<3)||(x<3&&y>=n-3); if(c) continue; if(rnd()>0.55) r+='<rect x="'+(pad+x*cell)+'" y="'+(pad+y*cell)+'" width="'+cell+'" height="'+cell+'" fill="#111"/>'; }
   return r+'</svg>';
 }
-function previewVars(){ const c=THEME.colors; return "--bg:"+bgCss(THEME.backgrounds[screen],c)+";--bgc:"+c.background+";--fg:"+c.foreground+";--pri:"+c.primary+";--acc:"+c.accent+";--cd:"+c.card+";--ma:"+THEME.markAccent+";--fd:'"+THEME.fontDisplay+"',sans-serif;--fb:'"+THEME.fontBody+"',sans-serif;"; }
+function previewVars(){ const c=THEME.colors; return "--bg:"+bgCss(THEME.backgrounds[screen],c)+";--bgc:"+c.background+";--fg:"+c.foreground+";--pri:"+c.primary+";--acc:"+c.accent+";--cd:"+c.card+";--ma:"+THEME.markAccent+";--fa:"+THEME.freeAccent+";--fd:'"+THEME.fontDisplay+"',sans-serif;--fb:'"+THEME.fontBody+"',sans-serif;"; }
 function logoHtml(h){ const src=THEME.logoUrl||"pluckers-logo.png"; return '<img src="'+src+'" onerror="this.style.display=\'none\'" alt="logo" style="max-height:'+(h||40)+'px;object-fit:contain;pointer-events:none;" />'; }
 function elInner(e){
   const ov=elOv(e.key), sz=ov.size||e.size;
@@ -447,12 +448,12 @@ function renderElementEditor(){
 /* ---------- CONTROLS WIRING ---------- */
 function buildColorRows(){
   $("colorRows").innerHTML="";
-  COLOR_FIELDS.concat([{k:"markAccent",label:"Marked square",mark:true}]).forEach(f=>{
+  COLOR_FIELDS.concat([{k:"markAccent",label:"Marked square",mark:true},{k:"freeAccent",label:"Free square",free:true}]).forEach(f=>{
     const row=document.createElement("div"); row.className="swatch";
-    const val = f.mark ? THEME.markAccent : THEME.colors[f.k];
+    const val = f.free ? THEME.freeAccent : (f.mark ? THEME.markAccent : THEME.colors[f.k]);
     row.innerHTML='<span style="font-size:13px;">'+f.label+'</span>';
     const inp=document.createElement("input"); inp.type="color"; inp.value=hslToHex(val);
-    inp.addEventListener("input",()=>{ const hsl=hexToHsl(inp.value); if(f.mark) THEME.markAccent=hsl; else THEME.colors[f.k]=hsl; renderPreview(); markEdited(); });
+    inp.addEventListener("input",()=>{ const hsl=hexToHsl(inp.value); if(f.free) THEME.freeAccent=hsl; else if(f.mark) THEME.markAccent=hsl; else THEME.colors[f.k]=hsl; renderPreview(); markEdited(); });
     row.appendChild(inp); $("colorRows").appendChild(row);
   });
 }
