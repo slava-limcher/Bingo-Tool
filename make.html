@@ -97,6 +97,15 @@
           <label class="uploadbtn shrink" style="margin:0;">Upload<input type="file" id="logoFile" accept="image/*" style="display:none" /></label>
         </div>
         <div class="hint">Leave blank to use the default BarBoards logo.</div>
+        <label style="margin-top:10px;">Logo display</label>
+        <select id="logoMode">
+          <option value="custom">Just your logo</option>
+          <option value="both">BarBoards + your logo</option>
+          <option value="barboards">BarBoards logo only</option>
+        </select>
+        <div class="hint">Pick how the logo shows on the TV, phones &amp; landing.</div>
+        <button class="btn alt sm" id="useLogoColors" style="margin-top:10px;">🎨 Use logo colors</button>
+        <div class="hint" id="logoColorStatus">Builds the whole palette (accent, buttons, background, text) from your logo.</div>
       </div>
 
       <div class="card">
@@ -227,10 +236,53 @@ function hslToHex(hsl){
   const f=n=>{const c=l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1));return Math.round(255*c).toString(16).padStart(2,'0');};
   return "#"+f(0)+f(8)+f(4);
 }
+// rgb (0-255) -> {h:0-360, s:0-1, l:0-1}
+function rgbToHsl(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b); let h=0,s=0,l=(mx+mn)/2; const d=mx-mn;
+  if(d){ s=l>0.5?d/(2-mx-mn):d/(mx+mn); switch(mx){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4;} h*=60; }
+  return {h,s,l}; }
+
+/* ---------- "Use logo colors": sample the logo → full palette ---------- */
+function useLogoColors(){
+  const src=THEME.logoUrl;
+  const setStatus=(m,ok)=>{ const el=$("logoColorStatus"); if(el){ el.textContent=m; el.style.color=ok?"#2f8f4e":"#b23b3b"; } };
+  if(!src){ setStatus("Add a logo first (upload or paste a URL), then click this.",false); return; }
+  const img=new Image(); img.crossOrigin="anonymous";
+  img.onerror=()=>setStatus("Couldn't load that logo image to read its colors.",false);
+  img.onload=()=>{
+    try{
+      const W=80, h=Math.max(1,Math.round(W*((img.height/img.width)||1)));
+      const cv=document.createElement("canvas"); cv.width=W; cv.height=h;
+      const ctx=cv.getContext("2d"); ctx.drawImage(img,0,0,W,h);
+      const data=ctx.getImageData(0,0,W,h).data, buckets={};
+      for(let i=0;i<data.length;i+=4){ if(data[i+3]<100) continue;
+        const r=data[i],g=data[i+1],b=data[i+2], key=((r>>4)<<8)|((g>>4)<<4)|(b>>4);
+        const bk=buckets[key]||(buckets[key]={c:0,r:0,g:0,b:0}); bk.c++; bk.r+=r; bk.g+=g; bk.b+=b; }
+      const list=Object.keys(buckets).map(k=>{ const bk=buckets[k], r=bk.r/bk.c,g=bk.g/bk.c,bl=bk.b/bk.c, o=rgbToHsl(r,g,bl); return {c:bk.c,h:o.h,s:o.s,l:o.l}; });
+      if(!list.length){ setStatus("Couldn't read colors from that logo — try uploading the file.",false); return; }
+      const hueDist=(a,b)=>{ let d=Math.abs(a-b)%360; return d>180?360-d:d; };
+      const trip=o=>Math.round(o.h)+" "+Math.round(o.s*100)+"% "+Math.round(o.l*100)+"%";
+      const vibrant=list.filter(x=>x.s>=0.22 && x.l>=0.22 && x.l<=0.82).sort((a,b)=>(b.c*b.s)-(a.c*a.s));
+      const accent = vibrant[0] || list.slice().sort((a,b)=>b.c-a.c)[0];
+      const primary = vibrant.find(x=>x!==accent && hueDist(x.h,accent.h)>25) || vibrant[1] || {h:(accent.h+28)%360,s:accent.s,l:Math.min(0.6,accent.l+0.06)};
+      const darks=list.filter(x=>x.l<0.22).sort((a,b)=>b.c-a.c);
+      const bg = darks[0] ? {h:darks[0].h,s:Math.min(darks[0].s,0.5),l:Math.max(0.04,Math.min(darks[0].l,0.09))} : {h:accent.h,s:0.30,l:0.06};
+      const card = {h:bg.h,s:bg.s,l:Math.min(0.22,bg.l+0.11)};
+      const lights=list.filter(x=>x.l>0.82).sort((a,b)=>b.c-a.c);
+      const fg = lights[0] ? {h:lights[0].h,s:Math.min(lights[0].s,0.2),l:Math.max(0.92,lights[0].l)} : {h:accent.h,s:0.15,l:0.97};
+      THEME.colors.accent=trip(accent); THEME.colors.primary=trip(primary);
+      THEME.colors.background=trip(bg); THEME.colors.card=trip(card); THEME.colors.foreground=trip(fg);
+      // keep the accent-driven bits coherent with the new accent
+      THEME.markAccent=THEME.colors.accent; THEME.periodColor=THEME.colors.accent; THEME.liveColor=THEME.colors.accent;
+      buildColorRows(); renderPreview(); markEdited();
+      setStatus("✓ Applied your logo's colors — tweak any swatch below if needed.",true);
+    }catch(err){ setStatus("Couldn't read that logo's colors (image host blocks it). Upload the file instead.",false); }
+  };
+  img.src=src;
+}
 
 /* ---------- Theme model (matches the game's Theme schema) ---------- */
 function defaultTheme(){ return {
-  name:"", logoUrl:null, fontDisplay:"Bebas Neue", fontBody:"Inter",
+  name:"", logoUrl:null, logoMode:"custom", fontDisplay:"Bebas Neue", fontBody:"Inter",
   colors:{ background:"240 20% 4%", foreground:"210 40% 98%", primary:"220 95% 50%", accent:"163 95% 42%", card:"217 33% 17%" },
   markAccent:"163 95% 42%",
   freeAccent:"45 93% 47%",
@@ -368,7 +420,13 @@ function qrSvg(size){ const S=size||64,n=13,cell=8,pad=6,sz=n*cell+pad*2; let r=
   return r+'</svg>';
 }
 function previewVars(){ const c=THEME.colors; return "--bg:"+bgCss(THEME.backgrounds[screen],c)+";--bgc:"+c.background+";--fg:"+c.foreground+";--pri:"+c.primary+";--acc:"+c.accent+";--cd:"+c.card+";--ma:"+THEME.markAccent+";--fa:"+THEME.freeAccent+";--sc:"+THEME.scoreColor+";--tm:"+THEME.teamColor+";--pd:"+THEME.periodColor+";--lv:"+THEME.liveColor+";--lp:"+THEME.lastPlayColor+";--fd:'"+THEME.fontDisplay+"',sans-serif;--fb:'"+THEME.fontBody+"',sans-serif;"; }
-function logoHtml(h){ const src=THEME.logoUrl||"pluckers-logo.png"; return '<img src="'+src+'" onerror="this.style.display=\'none\'" alt="logo" style="max-height:'+(h||40)+'px;object-fit:contain;pointer-events:none;" />'; }
+function logoHtml(h){
+  const mode=THEME.logoMode||"custom", custom=THEME.logoUrl, bb="barboards-logo.png";
+  const img=(src)=>'<img src="'+src+'" onerror="this.style.display=\'none\'" alt="logo" style="max-height:'+(h||40)+'px;object-fit:contain;pointer-events:none;" />';
+  if(mode==="both" && custom) return '<span style="display:inline-flex;align-items:center;gap:'+Math.max(8,Math.round((h||40)*0.28))+'px;">'+img(bb)+'<span style="width:1px;align-self:stretch;background:hsl(var(--fg)/0.25);"></span>'+img(custom)+'</span>';
+  if(mode==="custom" && custom) return img(custom);
+  return img(bb);   // "barboards", or any mode with no custom logo yet
+}
 function elInner(e){
   const ov=elOv(e.key), sz=ov.size||e.size;
   if(e.kind==="qr") return qrSvg(sz);
@@ -481,7 +539,7 @@ function buildTextRows(){
   });
 }
 function syncControlsFromTheme(){
-  $("name").value=THEME.name||""; $("logo").value=THEME.logoUrl||"";
+  $("name").value=THEME.name||""; $("logo").value=THEME.logoUrl||""; $("logoMode").value=THEME.logoMode||"custom";
   $("fontDisplay").value=THEME.fontDisplay; $("fontBody").value=THEME.fontBody;
   buildColorRows(); buildTextRows(); syncBgControls(); renderBgGallery(); renderElementEditor();
 }
@@ -509,6 +567,8 @@ function wireControls(){
   $("name").addEventListener("input",e=>{ THEME.name=e.target.value; markEdited(); });
   $("logo").addEventListener("input",e=>{ THEME.logoUrl=e.target.value||null; renderPreview(); markEdited(); });
   $("logoFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) fileToDataUrl(f,u=>{ THEME.logoUrl=u; $("logo").value=""; renderPreview(); markEdited(); }); });
+  $("logoMode").addEventListener("change",e=>{ THEME.logoMode=e.target.value; renderPreview(); markEdited(); });
+  $("useLogoColors").addEventListener("click",useLogoColors);
   function fontBind(inputId,key){ const apply=()=>{ const v=$(inputId).value.trim(); if(!v) return; THEME[key]=v; loadFont(v); renderPreview(); markEdited(); }; $(inputId).addEventListener("change",apply); return apply; }
   const ad=fontBind("fontDisplay","fontDisplay"), ab=fontBind("fontBody","fontBody");
   $("loadDisplayFont").addEventListener("click",ad); $("loadBodyFont").addEventListener("click",ab);
