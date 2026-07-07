@@ -195,6 +195,7 @@
         <label>Game dashboard URL</label>
         <input type="text" id="gameUrl" placeholder="http://localhost:5000" />
         <div class="hint">Where your Bar Bingo game runs. Publishing gives a link that opens this dashboard with your theme ready to use.</div>
+        <div class="hint" style="margin-top:6px;">▶ <b>Playing on another computer?</b> Send them the game folder; they run <code>docker compose up --build</code> and open <code>http://localhost:5000</code>. Your published link then works there too (the theme loads from the cloud). See <code>SHARE-GAME-DOCKER.md</code>.</div>
         <button id="publishBtn2" class="btn" style="width:100%; margin-top:10px;">🚀 Publish &amp; get link</button>
         <div id="pubResult" style="display:none; margin-top:10px;">
           <div style="font-weight:700; font-size:13px;">Published! Theme id: <code id="pubId" style="color:#8aa0ff;"></code></div>
