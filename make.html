@@ -6,6 +6,12 @@
 <title>Bingo Branding Studio</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+  /* Animated-background keyframes (mirror client/src/index.css) */
+  @keyframes bgFloatUp { 0%{top:100%;opacity:0} 12%{opacity:.7} 88%{opacity:.7} 100%{top:-5%;opacity:0} }
+  @keyframes bgGradientDrift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  @keyframes bgAurora { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.5} 50%{transform:translate(-46%,-54%) scale(1.25);opacity:.85} }
+  @keyframes bgConfetti { 0%{top:-5%;transform:rotate(0);opacity:0} 8%{opacity:1} 100%{top:105%;transform:rotate(720deg);opacity:.9} }
+  @keyframes bgTwinkle { 0%,100%{opacity:.15} 50%{opacity:1} }
   :root{ --bg:#0e1016; --panel:#171a24; --panel2:#1f2330; --line:#2a2f3e; --ink:#e8ebf2; --muted:#9aa3b6; --accent:#5b6cff; }
   *{ box-sizing:border-box; }
   body{ margin:0; font-family:'Inter',system-ui,Arial,sans-serif; background:var(--bg); color:var(--ink); }
@@ -163,6 +169,16 @@
         </div>
         <label>Dim: <span id="dimVal">0%</span> (darkens the background)</label>
         <input type="range" id="bgDim" min="0" max="1" step="0.05" value="0" />
+        <label style="margin-top:10px;">Animation</label>
+        <select id="bgAnim">
+          <option value="none">None</option>
+          <option value="particles">Floating particles</option>
+          <option value="gradient">Gradient drift</option>
+          <option value="aurora">Pulsing glow / aurora</option>
+          <option value="confetti">Confetti fall</option>
+          <option value="galaxy">Galaxy vibe</option>
+        </select>
+        <div class="hint">A moving layer over the background, tinted with your theme colors.</div>
       </div>
 
       <div class="card">
@@ -287,7 +303,7 @@ function defaultTheme(){ return {
   markAccent:"163 95% 42%",
   freeAccent:"45 93% 47%",
   scoreColor:"0 0% 100%", teamColor:"0 0% 100%", periodColor:"163 95% 42%", liveColor:"163 95% 42%", lastPlayColor:"0 0% 100%",
-  backgrounds:{ tv:{style:"solid",image:null,dim:0}, player:{style:"solid",image:null,dim:0}, landing:{style:"solid",image:null,dim:0} },
+  backgrounds:{ tv:{style:"solid",image:null,dim:0,animation:"none"}, player:{style:"solid",image:null,dim:0,animation:"none"}, landing:{style:"solid",image:null,dim:0,animation:"none"} },
   el:{ tv:{}, player:{}, landing:{} },   // per-element overrides {x,y,size,font,color,hidden,text}
   cardFaces:null,                        // null => default EVENT_LABELS; else 25 custom strings
   text:{ title:"Live Sports Bingo", scanToPlay:"SCAN TO PLAY", homeLabel:"HOME", awayLabel:"AWAY",
@@ -441,6 +457,18 @@ function elInner(e){
   if(ov.color) st+="color:hsl("+ov.color+");";
   return '<span style="'+st+'">'+esc(elText(e))+'</span>';
 }
+// Themeable animated background layer (mirrors client AnimatedBackground.tsx).
+function animSeed(i,s){ const x=Math.sin(i*12.9898+s*78.233)*43758.5453; return x-Math.floor(x); }
+function animBgHtml(anim){
+  anim=anim||"none"; if(anim==="none") return "";
+  const wrap=(inner,extra)=>'<div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;'+(extra||'')+'">'+inner+'</div>';
+  if(anim==="gradient") return wrap('<div style="position:absolute;inset:-50%;background:linear-gradient(120deg,hsl(var(--bgc)),hsl(var(--acc)/0.35),hsl(var(--pri)/0.35),hsl(var(--bgc)));background-size:300% 300%;animation:bgGradientDrift 20s ease-in-out infinite;opacity:.7;"></div>');
+  if(anim==="aurora"){ let h=""; [[22,30,"--acc",55,13,0],[76,62,"--pri",62,17,2],[52,18,"--acc",42,15,4]].forEach(b=>{ h+='<div style="position:absolute;left:'+b[0]+'%;top:'+b[1]+'%;width:'+b[3]+'%;height:'+b[3]+'%;transform:translate(-50%,-50%);background:radial-gradient(circle,hsl(var('+b[2]+')/0.5),transparent 70%);filter:blur(22px);animation:bgAurora '+b[4]+'s ease-in-out '+b[5]+'s infinite;"></div>'; }); return wrap(h); }
+  if(anim==="confetti"){ let h=""; for(let i=0;i<24;i++){ const x=animSeed(i,6)*100,w=5+animSeed(i,7)*5,ht=8+animSeed(i,8)*8,d=5+animSeed(i,9)*6,dl=animSeed(i,10)*6,c=["--acc","--pri","--fa"][i%3]; h+='<span style="position:absolute;left:'+x+'%;top:-5%;opacity:0;width:'+w+'px;height:'+ht+'px;background:hsl(var('+c+'));border-radius:1px;animation:bgConfetti '+d+'s linear '+dl+'s infinite;"></span>'; } return wrap(h); }
+  if(anim==="galaxy"){ let h=""; [[28,34,"--acc",60,20,0],[72,60,"--pri",66,26,3]].forEach(b=>{ h+='<div style="position:absolute;left:'+b[0]+'%;top:'+b[1]+'%;width:'+b[3]+'%;height:'+b[3]+'%;transform:translate(-50%,-50%);background:radial-gradient(circle,hsl(var('+b[2]+')/0.35),transparent 70%);filter:blur(28px);animation:bgAurora '+b[4]+'s ease-in-out '+b[5]+'s infinite;"></div>'; }); for(let i=0;i<46;i++){ const x=animSeed(i,11)*100,y=animSeed(i,12)*100,sz=1+animSeed(i,13)*2,d=2+animSeed(i,14)*4,dl=animSeed(i,15)*5,ac=i%4===0; h+='<span style="position:absolute;left:'+x+'%;top:'+y+'%;width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+(ac?"hsl(var(--acc))":"#fff")+';box-shadow:0 0 3px '+(ac?"hsl(var(--acc))":"#fff")+';animation:bgTwinkle '+d+'s ease-in-out '+dl+'s infinite;"></span>'; } return wrap(h,'background:radial-gradient(ellipse at 50% 40%,hsl(var(--pri)/0.10),transparent 70%);'); }
+  let h=""; for(let i=0;i<16;i++){ const x=animSeed(i,1)*100,sz=3+animSeed(i,2)*6,d=8+animSeed(i,3)*10,dl=animSeed(i,4)*10; h+='<span style="position:absolute;left:'+x+'%;top:100%;opacity:0;width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:hsl(var(--acc));box-shadow:0 0 '+(sz*2)+'px hsl(var(--acc)/0.6);animation:bgFloatUp '+d+'s linear '+dl+'s infinite;"></span>'; }
+  return wrap(h);
+}
 function renderPreview(){
   loadFont(THEME.fontDisplay); loadFont(THEME.fontBody);
   if(selectedKey && selectedKey.indexOf("face:")!==0 && !elDef(selectedKey)) selectedKey=null;
@@ -453,7 +481,7 @@ function renderPreview(){
     const x=ov.x!=null?ov.x:e.x, y=ov.y!=null?ov.y:e.y;
     els+='<div class="pv-el'+(selectedKey===e.key?" sel":"")+'" data-key="'+e.key+'" style="position:absolute;left:'+x+'%;top:'+y+'%;transform:translate(-50%,-50%);">'+elInner(e)+'</div>';
   });
-  $("previewStage").innerHTML='<div class="'+cls+'" id="pvFrame" style="'+v+'background:var(--bg);color:hsl(var(--fg));position:relative;'+extra+'">'+els+'</div>';
+  $("previewStage").innerHTML='<div class="'+cls+'" id="pvFrame" style="'+v+'background:var(--bg);color:hsl(var(--fg));position:relative;overflow:hidden;'+extra+'">'+animBgHtml(THEME.backgrounds[screen].animation)+els+'</div>';
   bindPreviewInteractions();
 }
 function bindPreviewInteractions(){
@@ -548,6 +576,7 @@ function syncBgControls(){
   $("bgImageControls").style.display = bg.style==="image" ? "" : "none";
   $("bgColor").value=hslToHex(THEME.colors.background);
   $("bgImage").value=bg.image||""; $("bgDim").value=bg.dim||0; $("dimVal").textContent=Math.round((bg.dim||0)*100)+"%";
+  $("bgAnim").value=bg.animation||"none";
 }
 
 /* background gallery (localStorage, this device) */
@@ -581,6 +610,7 @@ function wireControls(){
   $("bgImage").addEventListener("change",e=>{ if(e.target.value) galleryAdd(e.target.value); });
   $("bgFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) fileToDataUrl(f,u=>{ THEME.backgrounds[bgScreen].image=u; THEME.backgrounds[bgScreen].style="image"; galleryAdd(u); syncBgControls(); renderPreview(); markEdited(); }); });
   $("bgDim").addEventListener("input",e=>{ THEME.backgrounds[bgScreen].dim=+e.target.value; $("dimVal").textContent=Math.round(e.target.value*100)+"%"; renderPreview(); markEdited(); });
+  $("bgAnim").addEventListener("change",e=>{ THEME.backgrounds[bgScreen].animation=e.target.value; renderPreview(); markEdited(); });
   // preview screen toggle
   document.querySelectorAll("#previewSeg button").forEach(b=>b.addEventListener("click",()=>{ screen=b.dataset.s; selectedKey=null; document.querySelectorAll("#previewSeg button").forEach(x=>x.classList.toggle("active",x===b)); document.querySelectorAll("#bgScreenSeg button").forEach(x=>x.classList.toggle("active",x.dataset.s===screen)); bgScreen=screen; syncBgControls(); renderPreview(); renderElementEditor(); }));
   // publish buttons + game URL (persisted per device)
