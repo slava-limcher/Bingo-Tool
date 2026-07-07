@@ -220,7 +220,9 @@
       <div class="row" style="justify-content:space-between; margin-bottom:10px;">
         <strong style="font-size:14px;">Live preview</strong>
         <div class="seg" id="previewSeg">
-          <button data-s="tv" class="active">TV</button>
+          <button data-s="tv" class="active">TV (live)</button>
+          <button data-s="tvpre">Pre-game</button>
+          <button data-s="tvpost">Post-game</button>
           <button data-s="player">Phone</button>
           <button data-s="landing">Landing</button>
         </div>
@@ -305,12 +307,14 @@ function defaultTheme(){ return {
   freeAccent:"45 93% 47%",
   scoreColor:"0 0% 100%", teamColor:"0 0% 100%", periodColor:"163 95% 42%", liveColor:"163 95% 42%", lastPlayColor:"0 0% 100%",
   backgrounds:{ tv:{style:"solid",image:null,dim:0,animation:"none"}, player:{style:"solid",image:null,dim:0,animation:"none"}, landing:{style:"solid",image:null,dim:0,animation:"none"} },
-  el:{ tv:{}, player:{}, landing:{} },   // per-element overrides {x,y,size,font,color,hidden,text}
+  el:{ tv:{}, player:{}, landing:{}, tvpre:{}, tvpost:{} },   // per-element overrides {x,y,size,font,color,hidden,text}
   cardFaces:null,                        // null => default EVENT_LABELS; else 25 custom strings
   text:{ title:"Live Sports Bingo", scanToPlay:"SCAN TO PLAY", homeLabel:"HOME", awayLabel:"AWAY",
     lastPlayLabel:"LAST PLAY", lastPlayText:"Waiting for plays…", legendCompleted:"Event Completed",
     legendFree:"Free Square", winHeading:"Win Conditions per Player", winText:"1st Line Win & Blackout",
-    poweredBy:"Powered by BarBoards", namePlaceholder:"Your Name", joinButton:"Let's Go!", liveLabel:"● LIVE" }
+    poweredBy:"Powered by BarBoards", namePlaceholder:"Your Name", joinButton:"Let's Go!", liveLabel:"● LIVE",
+    stageLabel:"Game Starting Soon", playersJoinedLabel:"players joined", finalLabel:"Final",
+    noWinnersText:"No Winners This Game — Better Luck Next Time!", checkCardTitle:"Check Your Final Card" }
 };}
 // Read a text/label with fallback to the default (built-in presets may omit `text`).
 function T(k){ return (THEME.text && THEME.text[k]!=null && THEME.text[k]!=="") ? THEME.text[k] : defaultTheme().text[k]; }
@@ -338,7 +342,10 @@ const TEXT_FIELDS = [
   {k:"winHeading",label:"Win-conditions heading"},{k:"winText",label:"Win-conditions text"},
   {k:"poweredBy",label:"“Powered by” badge"},
   {k:"namePlaceholder",label:"Join: name field"},{k:"joinButton",label:"Join button"},
-  {k:"liveLabel",label:"“LIVE” badge text"}
+  {k:"liveLabel",label:"“LIVE” badge text"},
+  {k:"stageLabel",label:"Pre-game: status badge"},{k:"playersJoinedLabel",label:"Pre-game: “players joined”"},
+  {k:"finalLabel",label:"Post-game: “Final” badge"},{k:"noWinnersText",label:"Post-game: no-winners line"},
+  {k:"checkCardTitle",label:"Post-game: “Check card” title"}
 ];
 
 /* ---------- Google font loader (idempotent per family) ---------- */
@@ -357,6 +364,8 @@ function bgCss(bg, colors){
   if(bg.style==="gradient") return ov+"linear-gradient(135deg, hsl("+colors.background+"), hsl("+colors.card+"))";
   return ov+"hsl("+colors.background+")";
 }
+// Pregame/postgame are TV screens → they share the "tv" background/animation bucket.
+function bgKey(s){ return (s==="player"||s==="landing") ? s : "tv"; }
 
 /* ---------- PREVIEW — element engine (faithful + per-element editable) ---------- */
 let selectedKey = null;
@@ -371,7 +380,8 @@ const ROLE_STYLE = {
   play:"font-family:var(--fb);color:hsl(var(--lp)/0.85);font-weight:600;",
   free:"font-family:var(--fb);color:hsl(var(--fa));font-weight:700;",
   completed:"font-family:var(--fb);color:hsl(var(--ma));font-weight:700;",
-  badge:"font-family:var(--fb);color:hsl(var(--fg)/0.6);letter-spacing:.2em;text-transform:uppercase;border:1px solid hsl(var(--fg)/0.15);border-radius:99px;padding:6px 16px;"
+  badge:"font-family:var(--fb);color:hsl(var(--fg)/0.6);letter-spacing:.2em;text-transform:uppercase;border:1px solid hsl(var(--fg)/0.15);border-radius:99px;padding:6px 16px;",
+  pill:"font-family:var(--fb);color:#fff;background:hsl(var(--acc));border-radius:99px;padding:8px 22px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;"
 };
 const ELEMENTS = {
   tv:[
@@ -408,6 +418,33 @@ const ELEMENTS = {
     {key:"card",kind:"card",x:50,y:53,size:220,label:"Bingo card"},
     {key:"tagline",kind:"text",text:"Play Along. Win Prizes.",role:"strong",size:20,x:50,y:83,label:"Tagline"},
     {key:"poweredBy",kind:"text",tk:"poweredBy",role:"badge",size:11,x:50,y:91,label:"“Powered by”"}
+  ],
+  tvpre:[
+    {key:"qr",kind:"qr",x:90,y:13,size:38,label:"QR code"},
+    {key:"roomCode",kind:"text",text:"MMFCQL",role:"accentDisplay",size:13,x:79,y:24,ls:".14em",label:"Room code"},
+    {key:"scanToPlay",kind:"text",tk:"scanToPlay",role:"muted",size:7,x:79,y:29,label:"“Scan to play”"},
+    {key:"logo",kind:"logo",x:50,y:15,size:28,label:"Logo"},
+    {key:"title",kind:"text",tk:"title",role:"accentDisplay",size:24,x:50,y:33,label:"Title"},
+    {key:"stageLabel",kind:"text",tk:"stageLabel",role:"pill",size:13,x:50,y:49,label:"Status badge"},
+    {key:"players",kind:"text",tk:"playersJoinedLabel",role:"strong",size:12,x:50,y:59,label:"“players joined”"},
+    {key:"homeBar",kind:"bar",x:25,y:66,size:30,label:"Home line"},
+    {key:"homeLabel",kind:"text",tk:"homeLabel",role:"team",size:22,x:25,y:74,label:"Home team"},
+    {key:"awayBar",kind:"bar",x:75,y:66,size:30,label:"Away line"},
+    {key:"awayLabel",kind:"text",tk:"awayLabel",role:"team",size:22,x:75,y:74,label:"Away team"},
+    {key:"winHeading",kind:"text",tk:"winHeading",role:"muted",size:10,x:50,y:92,label:"Win conditions"}
+  ],
+  tvpost:[
+    {key:"logo",kind:"logo",x:50,y:12,size:26,label:"Logo"},
+    {key:"title",kind:"text",tk:"title",role:"accentDisplay",size:22,x:50,y:23,label:"Title"},
+    {key:"homeLabel",kind:"text",tk:"homeLabel",role:"team",size:16,x:22,y:45,label:"Home team"},
+    {key:"homeScore",kind:"text",text:"2",role:"score",size:48,x:22,y:57,label:"Home score"},
+    {key:"finalLabel",kind:"text",tk:"finalLabel",role:"pill",size:15,x:50,y:52,label:"“Final” badge"},
+    {key:"awayLabel",kind:"text",tk:"awayLabel",role:"team",size:16,x:78,y:45,label:"Away team"},
+    {key:"awayScore",kind:"text",text:"1",role:"score",size:48,x:78,y:57,label:"Away score"},
+    {key:"noWinners",kind:"text",tk:"noWinnersText",role:"muted",size:11,x:50,y:74,label:"Winners line"},
+    {key:"qr",kind:"qr",x:32,y:88,size:28,label:"QR code"},
+    {key:"checkCard",kind:"text",tk:"checkCardTitle",role:"strong",size:14,x:60,y:85,label:"“Check card”"},
+    {key:"roomLine",kind:"text",text:"Room: MMFCQL",role:"muted",size:9,x:60,y:91,label:"Room line"}
   ]
 };
 function elList(){ return ELEMENTS[screen]||[]; }
@@ -436,7 +473,7 @@ function qrSvg(size){ const S=size||64,n=13,cell=8,pad=6,sz=n*cell+pad*2; let r=
   for(let y=0;y<n;y++)for(let x=0;x<n;x++){ const c=(x<3&&y<3)||(x>=n-3&&y<3)||(x<3&&y>=n-3); if(c) continue; if(rnd()>0.55) r+='<rect x="'+(pad+x*cell)+'" y="'+(pad+y*cell)+'" width="'+cell+'" height="'+cell+'" fill="#111"/>'; }
   return r+'</svg>';
 }
-function previewVars(){ const c=THEME.colors; return "--bg:"+bgCss(THEME.backgrounds[screen],c)+";--bgc:"+c.background+";--fg:"+c.foreground+";--pri:"+c.primary+";--acc:"+c.accent+";--cd:"+c.card+";--ma:"+THEME.markAccent+";--fa:"+THEME.freeAccent+";--sc:"+THEME.scoreColor+";--tm:"+THEME.teamColor+";--pd:"+THEME.periodColor+";--lv:"+THEME.liveColor+";--lp:"+THEME.lastPlayColor+";--fd:'"+THEME.fontDisplay+"',sans-serif;--fb:'"+THEME.fontBody+"',sans-serif;"; }
+function previewVars(){ const c=THEME.colors; return "--bg:"+bgCss(THEME.backgrounds[bgKey(screen)],c)+";--bgc:"+c.background+";--fg:"+c.foreground+";--pri:"+c.primary+";--acc:"+c.accent+";--cd:"+c.card+";--ma:"+THEME.markAccent+";--fa:"+THEME.freeAccent+";--sc:"+THEME.scoreColor+";--tm:"+THEME.teamColor+";--pd:"+THEME.periodColor+";--lv:"+THEME.liveColor+";--lp:"+THEME.lastPlayColor+";--fd:'"+THEME.fontDisplay+"',sans-serif;--fb:'"+THEME.fontBody+"',sans-serif;"; }
 function logoHtml(h){
   const mode=THEME.logoMode||"custom", custom=THEME.logoUrl, bb="barboards-logo.png";
   const img=(src)=>'<img src="'+src+'" onerror="this.style.display=\'none\'" alt="logo" style="max-height:'+(h||40)+'px;object-fit:contain;pointer-events:none;" />';
@@ -476,13 +513,13 @@ function renderPreview(){
   elList().forEach(e=>{ const f=elOv(e.key).font; if(f) loadFont(f); });
   const v=previewVars();
   const cls = screen==="player" ? "phoneframe" : "tvframe";
-  const extra = screen==="tv" ? "" : "aspect-ratio:auto;height:470px;";
+  const extra = (screen==="player"||screen==="landing") ? "aspect-ratio:auto;height:470px;" : "";
   let els="";
   elList().forEach(e=>{ const ov=elOv(e.key); if(ov.hidden) return;
     const x=ov.x!=null?ov.x:e.x, y=ov.y!=null?ov.y:e.y;
     els+='<div class="pv-el'+(selectedKey===e.key?" sel":"")+'" data-key="'+e.key+'" style="position:absolute;left:'+x+'%;top:'+y+'%;transform:translate(-50%,-50%);">'+elInner(e)+'</div>';
   });
-  $("previewStage").innerHTML='<div class="'+cls+'" id="pvFrame" style="'+v+'background:var(--bg);color:hsl(var(--fg));position:relative;overflow:hidden;'+extra+'">'+animBgHtml(THEME.backgrounds[screen].animation)+els+'</div>';
+  $("previewStage").innerHTML='<div class="'+cls+'" id="pvFrame" style="'+v+'background:var(--bg);color:hsl(var(--fg));position:relative;overflow:hidden;'+extra+'">'+animBgHtml(THEME.backgrounds[bgKey(screen)].animation)+els+'</div>';
   bindPreviewInteractions();
 }
 function bindPreviewInteractions(){
@@ -613,7 +650,7 @@ function wireControls(){
   $("bgDim").addEventListener("input",e=>{ THEME.backgrounds[bgScreen].dim=+e.target.value; $("dimVal").textContent=Math.round(e.target.value*100)+"%"; renderPreview(); markEdited(); });
   $("bgAnim").addEventListener("change",e=>{ THEME.backgrounds[bgScreen].animation=e.target.value; renderPreview(); markEdited(); });
   // preview screen toggle
-  document.querySelectorAll("#previewSeg button").forEach(b=>b.addEventListener("click",()=>{ screen=b.dataset.s; selectedKey=null; document.querySelectorAll("#previewSeg button").forEach(x=>x.classList.toggle("active",x===b)); document.querySelectorAll("#bgScreenSeg button").forEach(x=>x.classList.toggle("active",x.dataset.s===screen)); bgScreen=screen; syncBgControls(); renderPreview(); renderElementEditor(); }));
+  document.querySelectorAll("#previewSeg button").forEach(b=>b.addEventListener("click",()=>{ screen=b.dataset.s; bgScreen=bgKey(screen); selectedKey=null; document.querySelectorAll("#previewSeg button").forEach(x=>x.classList.toggle("active",x===b)); document.querySelectorAll("#bgScreenSeg button").forEach(x=>x.classList.toggle("active",x.dataset.s===bgScreen)); syncBgControls(); renderPreview(); renderElementEditor(); }));
   // publish buttons + game URL (persisted per device)
   $("publishBtn").addEventListener("click",publish); $("publishBtn2").addEventListener("click",publish);
   const gu=$("gameUrl"); gu.value=localStorage.getItem("bingo-game-url")||"http://localhost:5000";
